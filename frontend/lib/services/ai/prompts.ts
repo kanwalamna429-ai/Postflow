@@ -288,19 +288,26 @@ export function buildSocialPostPrompt(
 
     // --- Publishing ---
     devto: `
-- Write a compelling article intro / summary for DEV.to (${platform.charLimit} chars max)
+- Write the FULL BODY of a published DEV.to article (up to ${platform.charLimit} chars)
+- If you have limited source material, write a comprehensive, informative article on the TOPIC implied by the title and URL — do not just repeat the title
+- Structure: opening hook → problem / concept → detailed explanation (use ## subheadings, bullet lists, code snippets if relevant) → key takeaways or call-to-action
 - Technical and informative tone — developers want substance, not hype
-- ${emoji ? 'Use minimal technical emojis (e.g. 🚀, 💡)' : 'No emojis'}
-- Start with the problem being solved or the concept being introduced
-- End with what the reader will learn or gain
-- ${options.includeHashtags !== false ? `Include ${platform.hashtagCount} relevant tags (without # — DEV.to uses plain tags)` : 'No tags'}`,
+- ${emoji ? 'Use minimal technical emojis (e.g. 🚀, 💡) as section accents' : 'No emojis'}
+- Use Markdown formatting (## headings, **bold**, \`code\`, bullet lists) — DEV.to renders Markdown
+- DO NOT include the article title (it is set separately); start directly with the article body
+- ${options.includeHashtags !== false ? `On the very last line, list ${platform.hashtagCount} plain tags separated by commas (no # symbol — e.g. "javascript, webdev, tutorial") for DEV.to's tag field` : 'No tags'}
+- Aim for at least 300 words of real, useful content`,
 
     hashnode: `
-- Write an article introduction or summary for Hashnode (${platform.charLimit} chars max)
+- Write the FULL BODY of a published Hashnode article (up to ${platform.charLimit} chars)
+- If you have limited source material, write a comprehensive, informative article on the TOPIC implied by the title and URL — do not just repeat the title
+- Structure: opening hook → problem / insight → in-depth explanation (use ## subheadings, bullet lists, practical examples) → conclusion with takeaways
 - Developer-focused, educational tone — emphasise technical depth and practical value
-- ${emoji ? 'Use 1–2 appropriate tech emojis' : 'No emojis'}
-- Hook the reader with a clear problem statement or insight in the first two sentences
-- ${options.includeHashtags !== false ? `Include ${platform.hashtagCount} relevant tags (without # — Hashnode uses plain tags)` : 'No tags'}`,
+- ${emoji ? 'Use 1–2 appropriate tech emojis as accents' : 'No emojis'}
+- Use Markdown formatting (## headings, **bold**, \`code\`) — Hashnode renders Markdown
+- DO NOT include the article title (it is set separately); start directly with the article body
+- ${options.includeHashtags !== false ? `On the very last line, list ${platform.hashtagCount} plain tags separated by commas (no # symbol) for Hashnode's tag field` : 'No tags'}
+- Aim for at least 300 words of real, useful content`,
 
     reddit: `
 - Write a Reddit post body (${ct === 'post' ? 'full text post' : 'intro paragraph'})

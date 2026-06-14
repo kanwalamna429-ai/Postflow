@@ -141,11 +141,14 @@ export async function resolveContent(
         generatedContent = result.descriptions[0]
       }
     } else {
-      // Social and publishing platforms get a full social post
+      // Social and publishing platforms get a full post / article body
+      const isPublishingPlatform = ['devto', 'hashnode', 'medium', 'substack'].includes(params.platform)
       const result = await generateSocialPost(ctx, {
         platform:        params.platform as SocialPlatform,
         includeHashtags: true,
         includeEmoji:    platformConfig?.aiConfig.emojiStyle !== 'none',
+        // Publishing platforms need a full article body — use higher token budget
+        maxOutputTokens: isPublishingPlatform ? 2048 : 512,
       })
       if (result.success && result.posts.length > 0) {
         generatedContent = result.posts[0].content
@@ -170,13 +173,41 @@ export async function resolveContent(
     generatedContent = title ?? sourceUrl ?? params.currentContent
   }
 
-  // Assemble complete post body for social platforms:
-  // title + body + URL + hashtags (publishing platforms use title/tags via adapter)
+  // -------------------------------------------------------------------------
+  // Assemble complete post body
+  //
+  // Publishing platforms (devto, hashnode, medium, substack):
+  //   Adapter handles title + tags separately; assemble body as:
+  //   description → AI body → source URL footer → tags (plain, last line)
+  //
+  // Social platforms:
+  //   title → body → source URL → hashtags
+  //
+  // Short platforms (twitter, bluesky, pocket, instapaper):
+  //   body → URL → hashtags  (skip title to preserve char budget)
+  // -------------------------------------------------------------------------
   const PUBLISHING_PLATFORMS = new Set(['devto', 'hashnode', 'medium', 'substack'])
   const SHORT_PLATFORMS      = new Set(['twitter', 'bluesky', 'pocket', 'instapaper'])
   const isPublishing = PUBLISHING_PLATFORMS.has(params.platform)
 
-  if (!isPublishing && generatedContent) {
+  if (isPublishing && generatedContent) {
+    // Publishing adapters (devto, hashnode, medium, substack) receive:
+    //   - title  → input.title  (separate field, not in body)
+    //   - tags   → input.tags   (adapter adds these to article tags + body footnote)
+    //   - url    → input.url    (adapter adds canonical_url + "Originally published at" footer)
+    // So the body should contain ONLY: description intro + AI article body.
+    const bodyParts: string[] = []
+
+    // 1. Description as opening paragraph (only if meaningfully different from AI body)
+    if (description && !generatedContent.includes(description.slice(0, 40))) {
+      bodyParts.push(description)
+    }
+
+    // 2. Main AI-generated article body
+    bodyParts.push(generatedContent)
+
+    generatedContent = bodyParts.filter(Boolean).join('\n\n')
+  } else if (!isPublishing && generatedContent) {
     const bodyParts: string[] = []
 
     if (!SHORT_PLATFORMS.has(params.platform) && title &&

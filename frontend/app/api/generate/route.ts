@@ -292,6 +292,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let content  = ''
     let hashtags: string[] = []
 
+    const isPublishingPlatform = ['devto', 'hashnode', 'medium', 'substack'].includes(platform)
+
     if (editedContent[platform]) {
       content = editedContent[platform]
     } else if (process.env.GEMINI_API_KEY) {
@@ -302,6 +304,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           includeHashtags: true,
           includeEmoji:    pSettings.includeEmoji,
           cta:             pSettings.cta || undefined,
+          // Publishing platforms need a full article body — use higher token budget
+          maxOutputTokens: isPublishingPlatform ? 2048 : 512,
         })
         if (result.success && result.posts.length > 0) {
           content  = result.posts[0].content
@@ -309,10 +313,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
       } catch (err) {
         console.error(`[generate] AI failed for ${platform}:`, err instanceof Error ? err.message : err)
-        content = enrichedCtx.title ?? sourceUrl ?? `[Content for ${platform}]`
       }
-    } else {
-      content = enrichedCtx.title ?? sourceUrl ?? `[Content for ${platform}]`
     }
 
     if (!content) content = enrichedCtx.title ?? sourceUrl ?? `[Content for ${platform}]`
@@ -333,17 +334,38 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // -----------------------------------------------------------------------
-    // Assemble complete post body: AI title + body + CTA + URL + hashtags
+    // Assemble complete post body
     //
-    // Publishing platforms (devto, hashnode, medium, substack) send title and
-    // tags to their adapters separately — keep their body content as generated.
-    // Social platforms get the full assembled post in the content/textarea field.
+    // Publishing platforms (devto, hashnode, medium, substack):
+    //   Adapter handles title + tags separately; assemble body as:
+    //   description → AI body → source URL footer → tags (plain, last line)
+    //
+    // Social platforms:
+    //   title → body → CTA → source URL → hashtags
+    //
+    // Short platforms (twitter, bluesky, pocket, instapaper):
+    //   body → URL → hashtags  (skip title to preserve char budget)
     // -----------------------------------------------------------------------
-    const PUBLISHING_PLATFORMS = new Set(['devto', 'hashnode', 'medium', 'substack'])
-    const SHORT_PLATFORMS      = new Set(['twitter', 'bluesky', 'pocket', 'instapaper'])
-    const isPublishing = PUBLISHING_PLATFORMS.has(platform)
+    const SHORT_PLATFORMS = new Set(['twitter', 'bluesky', 'pocket', 'instapaper'])
 
-    if (!isPublishing) {
+    if (isPublishingPlatform) {
+      // Publishing adapters (devto, hashnode, medium, substack) receive:
+      //   - title  → input.title  (separate field, not in body)
+      //   - tags   → input.tags   (adapter adds these to article tags + body footnote)
+      //   - url    → input.url    (adapter adds canonical_url + "Originally published at" footer)
+      // So the body should contain ONLY: description intro + AI article body.
+      const bodyParts: string[] = []
+
+      // 1. Description as opening paragraph (only if meaningfully different from AI body)
+      if (rewrittenDescription && !content.includes(rewrittenDescription.slice(0, 40))) {
+        bodyParts.push(rewrittenDescription)
+      }
+
+      // 2. Main AI-generated article body
+      if (content) bodyParts.push(content)
+
+      content = bodyParts.filter(Boolean).join('\n\n')
+    } else {
       const bodyParts: string[] = []
 
       // 1. AI title as opening hook (skip for short platforms where every char counts)
