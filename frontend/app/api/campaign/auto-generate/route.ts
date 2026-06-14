@@ -15,6 +15,7 @@ import { createClient } from '@/lib/supabase/server'
 import { fetchUrl } from '@/lib/services/url/fetcher'
 import { extractMetadata } from '@/lib/services/url/extractor'
 import { generateSocialPost } from '@/lib/services/ai/social-post'
+import { buildFallbackContent, buildFallbackHashtags } from '@/lib/services/ai/fallback'
 import { generateDescription } from '@/lib/services/ai/description'
 import { generate } from '@/lib/services/ai/client'
 import { PLATFORM_LIMITS } from '@/lib/services/ai/prompts'
@@ -327,40 +328,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
       }
 
+      // Per-platform hashtag limit — declare before the fallback so it's in scope
+      const maxHashtags = pSettings.maxHashtags > 0 ? pSettings.maxHashtags : (limits?.hashtagCount ?? 5)
+
       if (!content) {
-        // Build meaningful fallback from all available metadata so the body isn't just a title
-        const isPublishing = ['devto', 'hashnode', 'medium', 'substack'].includes(platform)
-        const isShort      = ['twitter', 'bluesky', 'pocket', 'instapaper'].includes(platform)
-        const parts: string[] = []
-        const ctxTitle = enrichedCtx.title ?? ''
-        const ctxDesc  = enrichedCtx.description ?? ''
-        const bodyText = (enrichedCtx.sourceText && enrichedCtx.sourceText !== ctxTitle && enrichedCtx.sourceText !== ctxDesc)
-          ? enrichedCtx.sourceText : ''
-        if (isPublishing) {
-          if (ctxDesc)  parts.push(ctxDesc)
-          if (bodyText) parts.push(bodyText.slice(0, 3_000))
-          if (sourceUrl) parts.push(`Source: ${sourceUrl}`)
-        } else if (isShort) {
-          parts.push(ctxDesc || ctxTitle)
-          if (sourceUrl) parts.push(sourceUrl)
-        } else {
-          if (ctxTitle)                     parts.push(ctxTitle)
-          if (ctxDesc && ctxDesc !== ctxTitle) parts.push(ctxDesc)
-          if (bodyText)                     parts.push(bodyText.slice(0, 800))
-          if (sourceUrl)                    parts.push(sourceUrl)
+        content = buildFallbackContent({ platform, ctx: enrichedCtx, sourceUrl, charLimit })
+        if (hashtags.length === 0) {
+          hashtags = buildFallbackHashtags(enrichedCtx, sourceUrl, maxHashtags)
         }
-        content = parts.filter(Boolean).join('\n\n') || ctxTitle || sourceUrl || `[Content for ${platform}]`
-        if (charLimit > 0 && content.length > charLimit) content = content.slice(0, charLimit)
       }
 
-      // Apply per-platform hashtag count limit
+      // Merge custom hashtags from platform settings
       if (pSettings.hashtags) {
         const custom = pSettings.hashtags
           .split(/[\s,]+/).map((t) => t.trim()).filter(Boolean)
           .map((t) => (t.startsWith('#') ? t : `#${t}`))
         hashtags = [...new Set([...hashtags, ...custom])]
       }
-      const maxHashtags = pSettings.maxHashtags > 0 ? pSettings.maxHashtags : (limits?.hashtagCount ?? 5)
       if (hashtags.length > maxHashtags) hashtags = hashtags.slice(0, maxHashtags)
 
       // -----------------------------------------------------------------------

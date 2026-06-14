@@ -23,6 +23,7 @@ import { generateSocialPost } from '@/lib/services/ai/social-post'
 import { generateDescription } from '@/lib/services/ai/description'
 import { generate } from '@/lib/services/ai/client'
 import { PLATFORM_LIMITS } from '@/lib/services/ai/prompts'
+import { buildFallbackContent, buildFallbackHashtags } from '@/lib/services/ai/fallback'
 import { frequencyToMs } from '@/lib/services/campaigns/frequency'
 import { loadSettings } from '@/lib/services/settings'
 import type {
@@ -88,52 +89,6 @@ async function rewriteDescription(ctx: ContentContext): Promise<string | null> {
     const res = await generateDescription(ctx, { targetWords: 50, style: 'sentence' })
     return res.success && res.descriptions.length > 0 ? res.descriptions[0] : null
   } catch { return null }
-}
-
-// ---------------------------------------------------------------------------
-// Build rich fallback content when AI is unavailable or fails
-// Uses all available extracted metadata so the textarea has real content.
-// ---------------------------------------------------------------------------
-
-function buildFallbackContent(
-  platform:    string,
-  ctx:         ContentContext,
-  sourceUrl:   string | null,
-  charLimit:   number,
-): string {
-  const isPublishing = ['devto', 'hashnode', 'medium', 'substack'].includes(platform)
-  const isShort      = ['twitter', 'bluesky', 'pocket', 'instapaper'].includes(platform)
-
-  const parts: string[] = []
-  const title       = ctx.title       ?? ''
-  const description = ctx.description ?? ''
-  // sourceText may be the body, description, title, or URL depending on extraction
-  const bodyText = (ctx.sourceText && ctx.sourceText !== title && ctx.sourceText !== description)
-    ? ctx.sourceText
-    : ''
-
-  if (isPublishing) {
-    if (description)           parts.push(description)
-    if (bodyText)              parts.push(bodyText.slice(0, 3_000))
-    if (sourceUrl)             parts.push(`Source: ${sourceUrl}`)
-  } else if (isShort) {
-    const main = description || title
-    if (main)      parts.push(main)
-    if (sourceUrl) parts.push(sourceUrl)
-  } else {
-    if (title)                                parts.push(title)
-    if (description && description !== title) parts.push(description)
-    if (bodyText)                             parts.push(bodyText.slice(0, 800))
-    if (sourceUrl)                            parts.push(sourceUrl)
-    if (ctx.keywords?.length) {
-      const tags = ctx.keywords.slice(0, 5).map((k) => `#${k.replace(/\s+/g, '')}`).join(' ')
-      parts.push(tags)
-    }
-  }
-
-  let result = parts.filter(Boolean).join('\n\n')
-  if (charLimit > 0 && result.length > charLimit) result = result.slice(0, charLimit)
-  return result || title || sourceUrl || '[Content pending]'
 }
 
 // ---------------------------------------------------------------------------
@@ -362,7 +317,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    if (!content) content = buildFallbackContent(platform, enrichedCtx, sourceUrl, charLimit)
+    // Respect per-platform maxHashtags setting (0 = use platform default)
+    const maxHashtags = pSettings.maxHashtags > 0
+      ? pSettings.maxHashtags
+      : (limits?.hashtagCount ?? 5)
+
+    if (!content) {
+      content  = buildFallbackContent({ platform, ctx: enrichedCtx, sourceUrl, charLimit })
+      // Also populate hashtags from URL keywords so the hashtag section renders
+      if (hashtags.length === 0) {
+        hashtags = buildFallbackHashtags(enrichedCtx, sourceUrl, maxHashtags)
+      }
+    }
 
     if (pSettings.hashtags) {
       const custom = pSettings.hashtags
@@ -371,10 +337,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       hashtags = [...new Set([...hashtags, ...custom])]
     }
 
-    // Respect per-platform maxHashtags setting (0 = use platform default)
-    const maxHashtags = pSettings.maxHashtags > 0
-      ? pSettings.maxHashtags
-      : (limits?.hashtagCount ?? 5)
     if (hashtags.length > maxHashtags) {
       hashtags = hashtags.slice(0, maxHashtags)
     }

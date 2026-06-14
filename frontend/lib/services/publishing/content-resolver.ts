@@ -11,6 +11,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { generateSocialPost } from '@/lib/services/ai/social-post'
 import { generateDescription } from '@/lib/services/ai/description'
+import { buildFallbackContent, buildFallbackHashtags } from '@/lib/services/ai/fallback'
 import type { ContentContext, SocialPlatform } from '@/lib/services/ai/types'
 import { getPlatformConfig } from '@/lib/platforms'
 import { logContentGeneration } from './log-writer'
@@ -168,26 +169,11 @@ export async function resolveContent(
   }
 
   if (!generatedContent) {
-    // Build rich fallback from all available extracted metadata
-    const isPublishing = ['devto', 'hashnode', 'medium', 'substack'].includes(params.platform)
-    const isShort      = ['twitter', 'bluesky', 'pocket', 'instapaper'].includes(params.platform)
-    const bodyText     = (sourceText && sourceText !== title && sourceText !== description)
-      ? sourceText : ''
-    const parts: string[] = []
-    if (isPublishing) {
-      if (description) parts.push(description)
-      if (bodyText)    parts.push(bodyText.slice(0, 3_000))
-      if (sourceUrl)   parts.push(`Source: ${sourceUrl}`)
-    } else if (isShort) {
-      parts.push(description || title || '')
-      if (sourceUrl) parts.push(sourceUrl)
-    } else {
-      if (title)                                parts.push(title)
-      if (description && description !== title) parts.push(description)
-      if (bodyText)                             parts.push(bodyText.slice(0, 800))
-      if (sourceUrl)                            parts.push(sourceUrl)
+    const charLimit = 0  // no hard limit in resolver — adapters truncate per-platform
+    generatedContent = buildFallbackContent({ platform: params.platform, ctx, sourceUrl: sourceUrl ?? null, charLimit })
+    if (generatedTags.length === 0) {
+      generatedTags = buildFallbackHashtags(ctx, sourceUrl ?? null, 5)
     }
-    generatedContent = parts.filter(Boolean).join('\n\n') || title || sourceUrl || params.currentContent
   }
 
   // -------------------------------------------------------------------------
