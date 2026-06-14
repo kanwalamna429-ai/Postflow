@@ -170,6 +170,36 @@ export async function resolveContent(
     generatedContent = title ?? sourceUrl ?? params.currentContent
   }
 
+  // Assemble complete post body for social platforms:
+  // title + body + URL + hashtags (publishing platforms use title/tags via adapter)
+  const PUBLISHING_PLATFORMS = new Set(['devto', 'hashnode', 'medium', 'substack'])
+  const SHORT_PLATFORMS      = new Set(['twitter', 'bluesky', 'pocket', 'instapaper'])
+  const isPublishing = PUBLISHING_PLATFORMS.has(params.platform)
+
+  if (!isPublishing && generatedContent) {
+    const bodyParts: string[] = []
+
+    if (!SHORT_PLATFORMS.has(params.platform) && title &&
+        !generatedContent.trimStart().startsWith(title.slice(0, 30))) {
+      bodyParts.push(title)
+    }
+
+    bodyParts.push(generatedContent)
+
+    if (sourceUrl && !generatedContent.includes(sourceUrl)) {
+      bodyParts.push(sourceUrl)
+    }
+
+    if (generatedTags.length > 0) {
+      const firstTag = generatedTags[0].startsWith('#') ? generatedTags[0] : `#${generatedTags[0]}`
+      if (!generatedContent.includes(firstTag)) {
+        bodyParts.push(generatedTags.map((t) => (t.startsWith('#') ? t : `#${t}`)).join(' '))
+      }
+    }
+
+    generatedContent = bodyParts.filter(Boolean).join('\n\n')
+  }
+
   // -------------------------------------------------------------------------
   // Persist the resolved content back to scheduled_posts so retries skip generation
   // -------------------------------------------------------------------------

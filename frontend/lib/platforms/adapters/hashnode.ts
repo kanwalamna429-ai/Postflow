@@ -65,18 +65,32 @@ export class HashnodeAdapter extends BaseAdapter {
     return data
   }
 
+  /**
+   * Normalise the user-supplied host: strip https://, trailing slashes, and whitespace.
+   * e.g. "https://myblog.hashnode.dev/" → "myblog.hashnode.dev"
+   */
+  private normalizeHost(raw: string): string {
+    return raw
+      .trim()
+      .replace(/^https?:\/\//i, '')
+      .replace(/\/+$/, '')
+      .toLowerCase()
+  }
+
   /** Fetch publication ID from the configured host. */
   private async getPublicationId(host: string, apiKey: string): Promise<string> {
+    const normalizedHost = this.normalizeHost(host)
     const result = await this.gql<PublicationData>(
       `query Publication($host: String!) { publication(host: $host) { id title } }`,
-      { host },
+      { host: normalizedHost },
       apiKey
     )
     const pub = result.data?.publication
     if (!pub) {
       throw this.adapterError(
         'NOT_FOUND',
-        `No Hashnode publication found for host: ${host}. Check your Publication Host setting.`,
+        `No Hashnode publication found for host: "${normalizedHost}". ` +
+        `Check the Publication Host in your Hashnode connection settings (e.g. myblog.hashnode.dev).`,
         false
       )
     }

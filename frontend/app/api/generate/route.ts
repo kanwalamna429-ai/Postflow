@@ -317,16 +317,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (!content) content = enrichedCtx.title ?? sourceUrl ?? `[Content for ${platform}]`
 
-    // Append source URL to the post body for social/short-form platforms.
-    // Publishing platforms (devto, hashnode) already append it in their own adapter body builders.
-    const PUBLISHING_PLATFORMS = new Set(['devto', 'hashnode', 'medium', 'substack'])
-    if (sourceUrl && content && !PUBLISHING_PLATFORMS.has(platform) && !content.includes(sourceUrl)) {
-      const suffix = `\n${sourceUrl}`
-      if (content.length + suffix.length <= charLimit) {
-        content += suffix
-      }
-    }
-
     if (pSettings.hashtags) {
       const custom = pSettings.hashtags
         .split(/[\s,]+/).map((t) => t.trim()).filter(Boolean)
@@ -340,6 +330,56 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       : (limits?.hashtagCount ?? 5)
     if (hashtags.length > maxHashtags) {
       hashtags = hashtags.slice(0, maxHashtags)
+    }
+
+    // -----------------------------------------------------------------------
+    // Assemble complete post body: AI title + body + CTA + URL + hashtags
+    //
+    // Publishing platforms (devto, hashnode, medium, substack) send title and
+    // tags to their adapters separately — keep their body content as generated.
+    // Social platforms get the full assembled post in the content/textarea field.
+    // -----------------------------------------------------------------------
+    const PUBLISHING_PLATFORMS = new Set(['devto', 'hashnode', 'medium', 'substack'])
+    const SHORT_PLATFORMS      = new Set(['twitter', 'bluesky', 'pocket', 'instapaper'])
+    const isPublishing = PUBLISHING_PLATFORMS.has(platform)
+
+    if (!isPublishing) {
+      const bodyParts: string[] = []
+
+      // 1. AI title as opening hook (skip for short platforms where every char counts)
+      if (!SHORT_PLATFORMS.has(platform) && rewrittenTitle &&
+          !content.trimStart().startsWith(rewrittenTitle.slice(0, 30))) {
+        bodyParts.push(rewrittenTitle)
+      }
+
+      // 2. Main AI-generated body
+      if (content) bodyParts.push(content)
+
+      // 3. CTA from platform settings (if not already in body)
+      if (pSettings.cta && !content.includes(pSettings.cta)) {
+        bodyParts.push(pSettings.cta)
+      }
+
+      // 4. Source URL
+      if (sourceUrl && !content.includes(sourceUrl)) {
+        bodyParts.push(sourceUrl)
+      }
+
+      // 5. Hashtags as trailing text (only if not already embedded in body)
+      if (hashtags.length > 0) {
+        const firstTag = hashtags[0].startsWith('#') ? hashtags[0] : `#${hashtags[0]}`
+        if (!content.includes(firstTag)) {
+          const hashStr = hashtags.map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' ')
+          bodyParts.push(hashStr)
+        }
+      }
+
+      content = bodyParts.filter(Boolean).join('\n\n')
+
+      // Trim to platform character limit
+      if (charLimit > 0 && content.length > charLimit) {
+        content = content.slice(0, charLimit)
+      }
     }
 
     // -------------------------------------------------------------------
