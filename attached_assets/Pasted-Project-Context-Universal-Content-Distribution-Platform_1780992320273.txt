@@ -1,0 +1,283 @@
+Project Context
+
+Universal Content Distribution Platform
+
+Phases 1–4 are already completed.
+
+The system already includes:
+
+- Next.js 15
+- TypeScript
+- TailwindCSS
+- shadcn/ui
+- Supabase Auth
+- Supabase PostgreSQL
+- Supabase Storage
+- URL Library
+- Metadata Extraction
+- AI Content Generation
+- Campaign Management
+- Existing Platform Integrations
+
+DO NOT regenerate existing architecture.
+
+DO NOT modify working functionality.
+
+DO NOT refactor unrelated code.
+
+Extend the current implementation only.
+
+---
+
+GOAL
+
+Add support for the following additional platforms:
+
+Social / Publishing
+
+- Bluesky
+- Mastodon
+- Misskey
+- Pixelfed
+- Dev.to
+- Hashnode
+- Tumblr
+- Reddit
+
+Bookmarking / Read Later
+
+- Diigo
+- Raindrop.io
+- Pocket
+- Instapaper
+
+---
+
+PHASES TO IMPLEMENT FOR EACH PLATFORM
+
+For every platform implement all development completed so far in Phases 1–4.
+
+This means:
+
+1. Database integration
+2. Connection management
+3. Credential storage
+4. Encryption support
+5. Validation logic
+6. Platform metadata
+7. AI content generation support
+8. UI integration
+9. Settings integration
+10. Type definitions
+11. Service layer
+12. Error handling
+13. Logging support
+14. Future publishing compatibility
+
+---
+
+DATABASE CHANGES
+
+Update:
+
+platform_connections
+
+Add any missing fields required for:
+
+- OAuth
+- API Keys
+- Access Tokens
+- Refresh Tokens
+- User IDs
+- Instance URLs
+- Platform-specific configuration
+
+Generate migrations only if required.
+
+Maintain backward compatibility.
+
+---
+
+CONNECTION CENTER
+
+Add connection cards for:
+
+- Bluesky
+- Mastodon
+- Misskey
+- Pixelfed
+- Dev.to
+- Hashnode
+- Tumblr
+- Reddit
+- Diigo
+- Raindrop.io
+- Pocket
+- Instapaper
+
+Each platform must support:
+
+- Connect
+- Update Credentials
+- Test Connection
+- Disconnect
+
+Display connection status.
+
+---
+
+PLATFORM CONFIGURATION
+
+Create configuration definitions for each platform.
+
+Example:
+
+/lib/platforms/config/
+
+bluesky.ts
+mastodon.ts
+misskey.ts
+pixelfed.ts
+devto.ts
+hashnode.ts
+reddit.ts
+tumblr.ts
+diigo.ts
+raindrop.ts
+pocket.ts
+instapaper.ts
+
+Each config should define:
+
+- platform id
+- display name
+- icon
+- auth type
+- supported content types
+- character limits
+- image support
+- article support
+- bookmark support
+
+---
+
+TYPE DEFINITIONS
+
+Create strongly typed interfaces.
+
+Examples:
+
+PlatformConnection
+PlatformCredentials
+PlatformCapability
+PlatformSettings
+PlatformContent
+
+Avoid any.
+
+Use strict TypeScript.
+
+---
+
+AI CONTENT SUPPORT
+
+Update Gemini content generation.
+
+Support platform-specific generation for:
+
+Bluesky:
+
+- short posts
+
+Mastodon:
+
+- short posts
+
+Misskey:
+
+- notes
+
+Pixelfed:
+
+- image captions
+
+Dev.to:
+
+- article summaries
+
+Hashnode:
+
+- article summaries
+
+Tumblr:
+
+- post descriptions
+
+Reddit:
+
+- subreddit-friendly summaries
+
+Diigo:
+
+- bookmark notes
+
+Raindrop:
+
+- bookmark descriptions
+
+Pocket:
+
+- save metadata
+
+Instapaper:
+
+- save metadata
+
+Store templates in reusable modules.
+
+---
+
+SETTINGS PAGE
+
+Add platform defaults.
+
+Allow configuration of:
+
+- default hashtags
+- content style
+- tone
+- CTA settings
+- article length preferences
+
+---
+
+LOGGING
+
+Extend logging support for all new platforms.
+
+Track:
+
+- connection tests
+- credential updates
+- validation failures
+- content generation events
+
+---
+
+OUTPUT REQUIREMENTS
+
+Generate code only for these new platforms.
+
+Do not rebuild existing platforms.
+
+Do not generate publishing engine yet.
+
+Do not generate Edge Functions yet.
+
+Do not generate scheduler logic yet.
+
+Preserve all existing architecture and coding standards.
+
+Show affected file paths before generating code.
+
+Implement incrementally and safely.

@@ -1,0 +1,216 @@
+Implement Phase 7 only.
+
+IMPORTANT
+
+Read PROJECT_CONTEXT.md first.
+
+Reuse existing architecture.
+
+Do not rewrite completed phases.
+
+Do not refactor unrelated code.
+
+Do not modify UI unless required.
+
+Do not regenerate database schema.
+
+Do not regenerate authentication.
+
+Do not regenerate campaign engine.
+
+---
+
+PHASE 7 GOAL
+
+Build the publishing engine and Supabase execution layer.
+
+Use existing platform integrations from Phase 6.
+
+Supported platforms:
+
+- Bluesky
+- Mastodon
+- Misskey
+- Pixelfed
+- Dev.to
+- Hashnode
+- Reddit
+- Tumblr
+- Diigo
+- Raindrop.io
+- Pocket
+- Instapaper
+
+---
+
+STEP 1
+PLATFORM ADAPTERS
+
+Create adapter architecture in:
+
+lib/platforms/
+
+Every adapter must expose:
+
+validateConnection()
+
+publish()
+
+deletePost()
+
+Use shared interfaces.
+
+Reuse existing platform configuration.
+
+Implement proper typing.
+
+Implement error handling.
+
+Implement response normalization.
+
+---
+
+STEP 2
+PUBLISHING ENGINE
+
+Create reusable publishing service.
+
+Workflow:
+
+1. Load scheduled record
+2. Verify status
+3. Prevent duplicate publishing
+4. Load generated content
+5. Generate content if missing
+6. Upload image if required
+7. Publish using adapter
+8. Save response
+9. Save published URL
+10. Update status
+11. Create logs
+
+Use transaction-safe database operations.
+
+---
+
+STEP 3
+LOCKING SYSTEM
+
+Implement locking mechanism.
+
+Requirements:
+
+- Prevent duplicate execution
+- Prevent race conditions
+- Prevent concurrent publishing
+
+Use database locking fields.
+
+Publishing records must be processed once.
+
+---
+
+STEP 4
+RETRY SYSTEM
+
+Implement retry logic.
+
+Retry schedule:
+
+Attempt 1:
++1 minute
+
+Attempt 2:
++5 minutes
+
+Attempt 3:
++15 minutes
+
+After 3 failures:
+
+status = failed
+
+Store:
+
+- error message
+- error type
+- retry count
+- next retry timestamp
+
+---
+
+STEP 5
+LOGGING
+
+Store:
+
+- publish attempts
+- publish success
+- publish failures
+- retry events
+- adapter responses
+- system events
+
+Reuse existing logging architecture.
+
+---
+
+STEP 6
+SUPABASE EDGE FUNCTION
+
+Create:
+
+process-scheduled-posts
+
+Responsibilities:
+
+- Find due posts
+- Lock records
+- Publish content
+- Handle retries
+- Save logs
+- Update status
+
+Requirements:
+
+- Deno compatible
+- Idempotent
+- Production ready
+
+Do not use:
+
+- cron packages
+- BullMQ
+- Redis
+- RabbitMQ
+- Express
+- background workers
+
+---
+
+STEP 7
+DATABASE CHANGES
+
+Only create migrations if required.
+
+Do not redesign existing tables.
+
+Only add missing fields needed for:
+
+- locking
+- retries
+- publishing metadata
+
+---
+
+OUTPUT RULES
+
+Generate code incrementally.
+
+Show file path before every file.
+
+Explain why each file is needed.
+
+Do not generate all files at once.
+
+Wait for confirmation between major implementation sections.

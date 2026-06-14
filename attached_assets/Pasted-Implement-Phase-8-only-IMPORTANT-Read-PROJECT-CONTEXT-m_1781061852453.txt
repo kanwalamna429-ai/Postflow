@@ -1,0 +1,346 @@
+Implement Phase 8 only.
+
+IMPORTANT
+
+Read PROJECT_CONTEXT.md first.
+
+Read all existing code before making changes.
+
+Reuse existing architecture.
+
+Do not rewrite completed phases.
+
+Do not redesign the database.
+
+Do not replace existing implementations unless necessary.
+
+Do not modify platform adapters unless required for security or reliability.
+
+---
+
+PHASE 8 GOAL
+
+Production Hardening
+
+Focus on:
+
+- Security
+- Reliability
+- Monitoring
+- Performance
+- Deployment Readiness
+- Operational Safety
+
+The application must be ready for real-world usage.
+
+---
+
+STEP 1
+SECURITY REVIEW
+
+Audit the entire application.
+
+Review:
+
+- Authentication
+- Authorization
+- API access
+- Platform credentials
+- User settings
+- Publishing endpoints
+- Supabase integration
+
+Identify:
+
+- security risks
+- permission issues
+- data exposure risks
+- missing validation
+
+Implement fixes.
+
+---
+
+STEP 2
+INPUT VALIDATION
+
+Ensure all user input is validated.
+
+Areas:
+
+- URL imports
+- Campaign creation
+- Platform connections
+- Settings
+- Gemini prompts
+- Publishing requests
+
+Use existing validation architecture.
+
+Implement:
+
+- schema validation
+- sanitization
+- normalization
+
+Prevent invalid database writes.
+
+---
+
+STEP 3
+CREDENTIAL SECURITY
+
+Review all stored credentials.
+
+Platforms:
+
+- Bluesky
+- Mastodon
+- Misskey
+- Pixelfed
+- Dev.to
+- Hashnode
+- Reddit
+- Tumblr
+- Diigo
+- Raindrop
+- Pocket
+- Instapaper
+
+Implement:
+
+- encryption at rest
+- secure retrieval
+- secret masking
+- secure updates
+
+Prevent accidental exposure in:
+
+- logs
+- responses
+- UI
+
+---
+
+STEP 4
+RATE LIMITING
+
+Implement protection against:
+
+- excessive imports
+- excessive publishing requests
+- repeated connection tests
+- abuse of Gemini generation
+
+Use:
+
+- database-backed limits
+- Supabase-compatible implementation
+
+Do not use Redis.
+
+Do not use external services.
+
+---
+
+STEP 5
+CSRF AND REQUEST PROTECTION
+
+Review all write operations.
+
+Protect:
+
+- settings updates
+- campaign changes
+- connection changes
+- publishing actions
+
+Implement:
+
+- CSRF protection
+- request validation
+- origin verification
+
+---
+
+STEP 6
+DUPLICATE PUBLISHING PREVENTION
+
+Strengthen publishing safeguards.
+
+Prevent:
+
+- duplicate scheduled executions
+- duplicate publish attempts
+- duplicate content submissions
+
+Verify:
+
+- locking system
+- idempotency
+- publishing state transitions
+
+---
+
+STEP 7
+ERROR HANDLING
+
+Implement centralized error handling.
+
+Requirements:
+
+- structured errors
+- user-friendly messages
+- internal diagnostics
+- secure logging
+
+Do not expose secrets.
+
+Do not expose stack traces to users.
+
+---
+
+STEP 8
+MONITORING
+
+Implement monitoring architecture.
+
+Track:
+
+- publish success rate
+- publish failures
+- retry activity
+- platform availability
+- Gemini failures
+- system errors
+
+Create reusable monitoring utilities.
+
+---
+
+STEP 9
+SYSTEM HEALTH DASHBOARD
+
+Add system health section.
+
+Display:
+
+- publishing queue health
+- edge function health
+- platform connection health
+- recent failures
+- retry backlog
+- success rate
+
+Reuse existing dashboard architecture.
+
+---
+
+STEP 10
+AUDIT LOGGING
+
+Improve audit trail.
+
+Track:
+
+- settings changes
+- credential changes
+- connection changes
+- campaign changes
+- publishing events
+- authentication events
+
+Store structured metadata.
+
+---
+
+STEP 11
+PERFORMANCE REVIEW
+
+Review:
+
+- database queries
+- Supabase calls
+- dashboard loading
+- campaign loading
+- URL library loading
+
+Implement:
+
+- query optimization
+- pagination improvements
+- caching where appropriate
+- reduced database round trips
+
+Do not introduce Redis.
+
+---
+
+STEP 12
+ENVIRONMENT VALIDATION
+
+Create startup validation.
+
+Verify required environment variables:
+
+- Supabase URL
+- Supabase keys
+- Gemini API key
+- Encryption secrets
+- Platform secrets
+
+Provide clear errors when missing.
+
+---
+
+STEP 13
+DEPLOYMENT READINESS
+
+Prepare deployment configuration.
+
+Target:
+
+- Vercel
+- Supabase
+
+Generate:
+
+- environment variable checklist
+- deployment checklist
+- production verification checklist
+
+Do not deploy automatically.
+
+---
+
+STEP 14
+FINAL ARCHITECTURE REVIEW
+
+Review the completed application.
+
+Provide:
+
+1. Architecture summary
+2. Security summary
+3. Performance summary
+4. Reliability summary
+5. Remaining risks
+6. Recommended future improvements
+
+---
+
+OUTPUT RULES
+
+Generate changes incrementally.
+
+Show file path before every file.
+
+Explain purpose before generating code.
+
+Only modify files required for production hardening.
+
+Do not refactor unrelated code.
+
+Do not regenerate completed phases.
+
+Wait for approval between major sections.
