@@ -165,12 +165,29 @@ export async function resolveContent(
       success:         false,
       errorMessage:    message,
     })
-    // Fall back to title or source URL so publish can still proceed
-    generatedContent = title ?? sourceUrl ?? params.currentContent
   }
 
   if (!generatedContent) {
-    generatedContent = title ?? sourceUrl ?? params.currentContent
+    // Build rich fallback from all available extracted metadata
+    const isPublishing = ['devto', 'hashnode', 'medium', 'substack'].includes(params.platform)
+    const isShort      = ['twitter', 'bluesky', 'pocket', 'instapaper'].includes(params.platform)
+    const bodyText     = (sourceText && sourceText !== title && sourceText !== description)
+      ? sourceText : ''
+    const parts: string[] = []
+    if (isPublishing) {
+      if (description) parts.push(description)
+      if (bodyText)    parts.push(bodyText.slice(0, 3_000))
+      if (sourceUrl)   parts.push(`Source: ${sourceUrl}`)
+    } else if (isShort) {
+      parts.push(description || title || '')
+      if (sourceUrl) parts.push(sourceUrl)
+    } else {
+      if (title)                                parts.push(title)
+      if (description && description !== title) parts.push(description)
+      if (bodyText)                             parts.push(bodyText.slice(0, 800))
+      if (sourceUrl)                            parts.push(sourceUrl)
+    }
+    generatedContent = parts.filter(Boolean).join('\n\n') || title || sourceUrl || params.currentContent
   }
 
   // -------------------------------------------------------------------------

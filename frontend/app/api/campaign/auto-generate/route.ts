@@ -305,6 +305,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       let hashtags: string[] = []
 
       const isPublishingPlatform = ['devto', 'hashnode', 'medium', 'substack'].includes(platform)
+      const charLimit = limits?.charLimit ?? 500
 
       if (process.env.GEMINI_API_KEY) {
         try {
@@ -361,7 +362,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
       const maxHashtags = pSettings.maxHashtags > 0 ? pSettings.maxHashtags : (limits?.hashtagCount ?? 5)
       if (hashtags.length > maxHashtags) hashtags = hashtags.slice(0, maxHashtags)
-      const charLimit = limits?.charLimit ?? 500
 
       // -----------------------------------------------------------------------
       // Assemble complete post body

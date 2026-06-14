@@ -93,7 +93,8 @@ export class DevToAdapter extends BaseAdapter {
               body_markdown: bodyMarkdown,
               published:     true,
               tags,
-              ...(input.url ? { canonical_url: input.url } : {}),
+              ...(input.url        ? { canonical_url: input.url }             : {}),
+              ...(input.coverImage ? { main_image:    input.coverImage }       : {}),
             },
           }),
         }

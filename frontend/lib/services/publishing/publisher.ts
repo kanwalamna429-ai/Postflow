@@ -430,11 +430,16 @@ export async function publishOne(
     (post.metadata['original_url'] as string | undefined) ??
     undefined
 
+  // Featured / cover image stored in metadata by generate route
+  const coverImage =
+    (post.metadata['og_image'] as string | undefined) ?? undefined
+
   const publishInput: PublishInput = {
     content:     resolvedContent,
     url:         sourceUrl,
     title:       resolvedTitle,
     tags:        resolvedTags,
+    coverImage,
     contentType: platformConfig?.aiConfig.promptCategory === 'bookmark_note'
       ? 'bookmark'
       : platformConfig?.aiConfig.promptCategory === 'article_content'

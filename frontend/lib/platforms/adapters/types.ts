@@ -31,6 +31,8 @@ export interface PublishInput {
   title?: string
   /** Tags / hashtags — adapter applies platform-specific prefix and count limits */
   tags?: string[]
+  /** Public URL of a featured / cover image (OG image from the source URL) */
+  coverImage?: string
   /** Public URLs of media already uploaded to Supabase Storage */
   mediaUrls?: string[]
   /** Hint for which content type to create */

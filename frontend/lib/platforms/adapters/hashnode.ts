@@ -171,7 +171,8 @@ export class HashnodeAdapter extends BaseAdapter {
             contentMarkdown,
             publicationId,
             tags,
-            ...(input.url ? { originalArticleURL: input.url } : {}),
+            ...(input.url        ? { originalArticleURL: input.url } : {}),
+            ...(input.coverImage ? { coverImageOptions: { coverImageURL: input.coverImage } } : {}),
           },
         },
         apiKey
