@@ -91,6 +91,52 @@ async function rewriteDescription(ctx: ContentContext): Promise<string | null> {
 }
 
 // ---------------------------------------------------------------------------
+// Build rich fallback content when AI is unavailable or fails
+// Uses all available extracted metadata so the textarea has real content.
+// ---------------------------------------------------------------------------
+
+function buildFallbackContent(
+  platform:    string,
+  ctx:         ContentContext,
+  sourceUrl:   string | null,
+  charLimit:   number,
+): string {
+  const isPublishing = ['devto', 'hashnode', 'medium', 'substack'].includes(platform)
+  const isShort      = ['twitter', 'bluesky', 'pocket', 'instapaper'].includes(platform)
+
+  const parts: string[] = []
+  const title       = ctx.title       ?? ''
+  const description = ctx.description ?? ''
+  // sourceText may be the body, description, title, or URL depending on extraction
+  const bodyText = (ctx.sourceText && ctx.sourceText !== title && ctx.sourceText !== description)
+    ? ctx.sourceText
+    : ''
+
+  if (isPublishing) {
+    if (description)           parts.push(description)
+    if (bodyText)              parts.push(bodyText.slice(0, 3_000))
+    if (sourceUrl)             parts.push(`Source: ${sourceUrl}`)
+  } else if (isShort) {
+    const main = description || title
+    if (main)      parts.push(main)
+    if (sourceUrl) parts.push(sourceUrl)
+  } else {
+    if (title)                                parts.push(title)
+    if (description && description !== title) parts.push(description)
+    if (bodyText)                             parts.push(bodyText.slice(0, 800))
+    if (sourceUrl)                            parts.push(sourceUrl)
+    if (ctx.keywords?.length) {
+      const tags = ctx.keywords.slice(0, 5).map((k) => `#${k.replace(/\s+/g, '')}`).join(' ')
+      parts.push(tags)
+    }
+  }
+
+  let result = parts.filter(Boolean).join('\n\n')
+  if (charLimit > 0 && result.length > charLimit) result = result.slice(0, charLimit)
+  return result || title || sourceUrl || '[Content pending]'
+}
+
+// ---------------------------------------------------------------------------
 // Compute scheduled_at for a URL at a given slot index
 // ---------------------------------------------------------------------------
 
@@ -316,7 +362,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    if (!content) content = enrichedCtx.title ?? sourceUrl ?? `[Content for ${platform}]`
+    if (!content) content = buildFallbackContent(platform, enrichedCtx, sourceUrl, charLimit)
 
     if (pSettings.hashtags) {
       const custom = pSettings.hashtags
@@ -522,6 +568,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json({
     success:              true,
+    aiAvailable:          !!process.env.GEMINI_API_KEY,
     rewrittenTitle,
     rewrittenDescription,
     ogImage,

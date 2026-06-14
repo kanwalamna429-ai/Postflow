@@ -326,7 +326,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
       }
 
-      if (!content) content = enrichedCtx.title ?? sourceUrl ?? `[Content for ${platform}]`
+      if (!content) {
+        // Build meaningful fallback from all available metadata so the body isn't just a title
+        const isPublishing = ['devto', 'hashnode', 'medium', 'substack'].includes(platform)
+        const isShort      = ['twitter', 'bluesky', 'pocket', 'instapaper'].includes(platform)
+        const parts: string[] = []
+        const ctxTitle = enrichedCtx.title ?? ''
+        const ctxDesc  = enrichedCtx.description ?? ''
+        const bodyText = (enrichedCtx.sourceText && enrichedCtx.sourceText !== ctxTitle && enrichedCtx.sourceText !== ctxDesc)
+          ? enrichedCtx.sourceText : ''
+        if (isPublishing) {
+          if (ctxDesc)  parts.push(ctxDesc)
+          if (bodyText) parts.push(bodyText.slice(0, 3_000))
+          if (sourceUrl) parts.push(`Source: ${sourceUrl}`)
+        } else if (isShort) {
+          parts.push(ctxDesc || ctxTitle)
+          if (sourceUrl) parts.push(sourceUrl)
+        } else {
+          if (ctxTitle)                     parts.push(ctxTitle)
+          if (ctxDesc && ctxDesc !== ctxTitle) parts.push(ctxDesc)
+          if (bodyText)                     parts.push(bodyText.slice(0, 800))
+          if (sourceUrl)                    parts.push(sourceUrl)
+        }
+        content = parts.filter(Boolean).join('\n\n') || ctxTitle || sourceUrl || `[Content for ${platform}]`
+        if (charLimit > 0 && content.length > charLimit) content = content.slice(0, charLimit)
+      }
 
       // Apply per-platform hashtag count limit
       if (pSettings.hashtags) {

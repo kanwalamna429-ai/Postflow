@@ -75,6 +75,7 @@ interface GeneratedPost {
 
 interface GenerateResponse {
   success:              boolean
+  aiAvailable?:         boolean
   rewrittenTitle:       string | null
   rewrittenDescription: string | null
   ogImage:              string | null
@@ -342,6 +343,7 @@ function UrlCard({ url, campaign, connections }: UrlCardProps) {
   const [publishStates,  setPublishStates]  = useState<Record<string, PublishState>>({})
   const [publishErrors,  setPublishErrors]  = useState<Record<string, string>>({})
   const [publishSuccess, setPublishSuccess] = useState<Record<string, boolean>>({})
+  const [aiWarning,      setAiWarning]      = useState<string | null>(null)
 
   // Load any existing extracted_content for this URL
   useEffect(() => {
@@ -467,6 +469,12 @@ function UrlCard({ url, campaign, connections }: UrlCardProps) {
       for (const p of data.posts) init[p.platform] = p.content
       setEditedContent(init)
       setGenerateState("done")
+
+      if (data.aiAvailable === false) {
+        setAiWarning("GEMINI_API_KEY is not configured — add it to your Vercel environment variables to enable AI generation. Content was assembled from extracted metadata instead.")
+      } else {
+        setAiWarning(null)
+      }
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : "Unknown error")
       setGenerateState("done")
@@ -647,6 +655,16 @@ function UrlCard({ url, campaign, connections }: UrlCardProps) {
               : "Generate & Schedule Posts"}
           </Button>
 
+          {aiWarning && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 p-3 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-0.5">AI not configured</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">{aiWarning}</p>
+              </div>
+            </div>
+          )}
+
           {generateError && (
             <p className="text-xs text-destructive flex items-center gap-1.5">
               <AlertCircle className="h-3.5 w-3.5" /> {generateError}
@@ -754,6 +772,18 @@ export default function ContentPage() {
   const [connections,        setConnections]         = useState<Connection[]>([])
   const [urlsLoading,        setUrlsLoading]         = useState(false)
   const [connectionsLoaded,  setConnectionsLoaded]   = useState(false)
+  const [aiConfigured,       setAiConfigured]        = useState<boolean | null>(null)
+
+  // Check AI availability once on mount so the user sees a banner before generating
+  useEffect(() => {
+    fetch("/api/health")
+      .then((r) => r.json())
+      .then((data) => {
+        const aiCheck = data?.checks?.find((c: { name: string; status: string }) => c.name === "ai")
+        setAiConfigured(aiCheck?.status === "ok")
+      })
+      .catch(() => setAiConfigured(null))
+  }, [])
 
   const selectedCampaign = campaigns.find((c) => c.id === selectedCampaignId) ?? null
 
@@ -835,6 +865,23 @@ export default function ContentPage() {
       <Header title="Content" />
 
       <main className="flex-1 p-4 lg:p-6 space-y-5">
+
+        {/* Global AI configuration banner — shown whenever GEMINI_API_KEY is missing */}
+        {aiConfigured === false && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 px-4 py-3 flex items-start gap-3">
+            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                AI generation is disabled
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                <code className="font-mono bg-amber-100 dark:bg-amber-900 px-1 rounded">GEMINI_API_KEY</code> is not set in your environment.
+                Add it in Vercel → Project → Settings → Environment Variables and redeploy.
+                Content will still be assembled from extracted metadata as a fallback.
+              </p>
+            </div>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
