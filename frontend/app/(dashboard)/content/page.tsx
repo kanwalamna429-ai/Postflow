@@ -326,9 +326,10 @@ interface UrlCardProps {
 }
 
 function UrlCard({ url, campaign, connections }: UrlCardProps) {
-  const [extractState,  setExtractState]  = useState<ExtractState>("idle")
-  const [extractError,  setExtractError]  = useState<string | null>(null)
-  const [extracted,     setExtracted]     = useState<ExtractedContent | null>(null)
+  const [extractState,    setExtractState]    = useState<ExtractState>("idle")
+  const [extractError,    setExtractError]    = useState<string | null>(null)
+  const [extracted,       setExtracted]       = useState<ExtractedContent | null>(null)
+  const [extractRegenPhase, setExtractRegenPhase] = useState<"idle" | "extracting" | "generating">("idle")
   const [showExtracted, setShowExtracted] = useState(false)
 
   const [generateState,        setGenerateState]        = useState<GenerateState>("idle")
@@ -478,6 +479,67 @@ function UrlCard({ url, campaign, connections }: UrlCardProps) {
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : "Unknown error")
       setGenerateState("done")
+    }
+  }
+
+  // ---- Re-extract metadata then regenerate posts in one step ----
+  async function handleExtractAndGenerate() {
+    // Use a local variable to track phase — avoids reading stale React state in catch
+    let phase: "extracting" | "generating" = "extracting"
+    setExtractRegenPhase("extracting")
+    setExtractError(null)
+    setGenerateError(null)
+    try {
+      // Phase 1: fresh metadata fetch
+      const extractRes  = await fetch("/api/extract", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urlId: url.id }),
+      })
+      const extractData = await extractRes.json()
+      if (!extractRes.ok || !extractData.success) throw new Error(extractData.error ?? "Extraction failed")
+      setExtracted({
+        id:           extractData.extractedContentId,
+        title:        extractData.title,
+        description:  extractData.description,
+        author:       extractData.author,
+        og_image_url: extractData.ogImage,
+        keywords:     extractData.keywords ?? [],
+        source_url:   extractData.sourceUrl,
+        published_at: extractData.publishDate,
+      })
+      setExtractState("done")
+
+      // Phase 2: regenerate with the fresh metadata
+      phase = "generating"
+      setExtractRegenPhase("generating")
+      setGeneratedPosts([])
+      const genRes  = await fetch("/api/generate", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urlId: url.id, campaignId: campaign.id }),
+      })
+      const genData: GenerateResponse = await genRes.json()
+      if (!genRes.ok || !genData.success) throw new Error(genData.error ?? "Generation failed")
+
+      setGeneratedPosts(genData.posts)
+      setRewrittenTitle(genData.rewrittenTitle)
+      setRewrittenDesc(genData.rewrittenDescription)
+      setGeneratedOgImage(genData.ogImage)
+      setGeneratedSourceUrl(genData.sourceUrl)
+      const init: Record<string, string> = {}
+      for (const p of genData.posts) init[p.platform] = p.content
+      setEditedContent(init)
+      setGenerateState("done")
+      setAiWarning(
+        genData.aiAvailable === false
+          ? "GEMINI_API_KEY is not configured — add it to your Vercel environment variables to enable AI generation. Content was assembled from extracted metadata instead."
+          : null,
+      )
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error"
+      if (phase === "extracting") setExtractError(msg)
+      else setGenerateError(msg)
+    } finally {
+      setExtractRegenPhase("idle")
     }
   }
 
@@ -638,22 +700,42 @@ function UrlCard({ url, campaign, connections }: UrlCardProps) {
             ))}
           </div>
 
-          {/* Generate button */}
-          <Button
-            onClick={handleGenerate}
-            disabled={generateState === "generating"}
-            size="sm"
-            className="h-8 text-xs gap-1.5 w-full sm:w-auto"
-          >
-            {generateState === "generating"
-              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              : <Sparkles className="h-3.5 w-3.5" />}
-            {generateState === "generating"
-              ? `Generating for ${campaign.platforms.length} platform${campaign.platforms.length > 1 ? "s" : ""}…`
-              : generatedPosts.length > 0
-              ? "Re-generate All"
-              : "Generate & Schedule Posts"}
-          </Button>
+          {/* Generate / Re-extract & Regenerate buttons */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={handleGenerate}
+              disabled={generateState === "generating" || extractRegenPhase !== "idle"}
+              size="sm"
+              className="h-8 text-xs gap-1.5 flex-1 sm:flex-none"
+            >
+              {generateState === "generating"
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <Sparkles className="h-3.5 w-3.5" />}
+              {generateState === "generating"
+                ? `Generating for ${campaign.platforms.length} platform${campaign.platforms.length > 1 ? "s" : ""}…`
+                : generatedPosts.length > 0
+                ? "Re-generate All"
+                : "Generate & Schedule Posts"}
+            </Button>
+
+            {generatedPosts.length > 0 && (
+              <Button
+                onClick={handleExtractAndGenerate}
+                disabled={extractRegenPhase !== "idle" || generateState === "generating"}
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs gap-1.5 flex-1 sm:flex-none"
+              >
+                {extractRegenPhase === "extracting" ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Re-extracting…</>
+                ) : extractRegenPhase === "generating" ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Regenerating…</>
+                ) : (
+                  <><RefreshCw className="h-3.5 w-3.5" /> Re-extract &amp; Regenerate</>
+                )}
+              </Button>
+            )}
+          </div>
 
           {aiWarning && (
             <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 p-3 flex items-start gap-2">
